@@ -1,0 +1,8 @@
+# Everything below already ships with ComfyUI or is commonly present.
+# No versions are pinned on purpose: installing this file must never change an existing package.
+# torch, torchaudio, numpy and scipy are provided by ComfyUI itself and are deliberately not listed.
+transformers
+einops
+pyyaml
+av
+rotary-embedding-torch

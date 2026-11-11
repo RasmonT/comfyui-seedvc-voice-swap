@@ -1,0 +1,16 @@
+[project]
+name = "comfyui-seedvc-voice-swap"
+description = "Replace the voice in any audio with another voice (Seed-VC zero-shot voice conversion). Keeps music and background, exact length for video sync, one voice or two speakers each with their own voice. Standalone, models download automatically."
+version = "1.0.0"
+license = { file = "LICENSE" }
+# No versions pinned on purpose: installing must never change a package ComfyUI already has.
+# torch, torchaudio, numpy and scipy come with ComfyUI and are deliberately not listed.
+dependencies = ["transformers", "einops", "pyyaml", "av", "rotary-embedding-torch"]
+
+[project.urls]
+Repository = "https://github.com/rasmont/comfyui-seedvc-voice-swap"
+
+[tool.comfy]
+PublisherId = "rasmont"
+DisplayName = "Seed-VC Voice Swap (voice replacement, 1 or 2 speakers)"
+Icon = "https://raw.githubusercontent.com/rasmont/comfyui-seedvc-voice-swap/main/icon.png"

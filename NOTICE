@@ -1,0 +1,54 @@
+comfyui-seedvc-voice-swap
+Copyright (C) 2026 rasmont
+
+This program is free software: you can redistribute it and/or modify it under the
+terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later version.
+It is distributed WITHOUT ANY WARRANTY. See the LICENSE file for the full text.
+
+The pack is licensed under GPL-3.0 because it contains code from Seed-VC.
+No code from Wan2GP / WanGP is included.
+
+================================================================================
+Third-party source code included in this repository
+================================================================================
+
+seedvc_swap/third_party/seed_vc/  (modified; every file states its changes on line 2)
+  Seed-VC, https://github.com/Plachtaa/seed-vc, commit 51383efd921027683c89e5348211d93ff12ac2a8
+  Copyright (c) Plachta (Songting Liu) and contributors. GPL-3.0.
+  seedvc_swap/converter.py is a rewrite of that project's inference.py.
+  Seed-VC itself bundles code from:
+    - BigVGAN, Copyright (c) 2024 NVIDIA Corporation, MIT
+      (adapted from HiFi-GAN, Copyright (c) 2020 Jungil Kong, MIT; activations adapted from
+      Snake, Copyright (c) 2020 Edward Dixon, MIT; alias-free modules adapted from
+      alias-free-torch by Junjun Jung, Apache-2.0)
+    - CAM++ speaker encoder from 3D-Speaker, Copyright Alibaba DAMO Academy, Apache-2.0
+    - RMVPE pitch extractor as packaged by Retrieval-based-Voice-Conversion-WebUI, MIT
+    - convolution wrappers from EnCodec, Copyright (c) Meta Platforms, Inc., MIT
+    - transformer blocks derived from gpt-fast, Copyright (c) Meta Platforms, Inc., BSD-3-Clause
+    - WaveNet module derived from VITS, Copyright (c) 2021 Jaehyeon Kim, MIT
+
+seedvc_swap/third_party/bs_roformer/  (modified; every file states its changes on line 2)
+  Music-Source-Separation-Training, https://github.com/ZFTurbo/Music-Source-Separation-Training,
+  commit 1d4b3c431b37de696b3795ed2018493aacba946f
+  Copyright (c) 2024 Roman Solovyev (ZFTurbo), MIT. Based on BS-RoFormer by Phil Wang
+  (lucidrains), MIT. The chunked overlap-add inference in seedvc_swap/separator.py follows the
+  method of that project's demix routine.
+
+================================================================================
+Model weights (downloaded at first use, NOT part of this repository)
+================================================================================
+
+Each file is fetched from its original publisher at a pinned revision and checked against a
+SHA256 before it is loaded. Sources and hashes: seedvc_swap/manifest.py.
+
+  Seed-VC DiT checkpoints (speech, singing)   Plachta/Seed-VC                    GPL-3.0
+  CAM++ speaker encoder                       funasr/campplus                    Apache-2.0
+  RMVPE pitch extractor (singing only)        lj1995/VoiceConversionWebUI        MIT
+  BigVGAN v2 vocoders (22 kHz, 44 kHz)        nvidia/bigvgan_v2_*                MIT
+  Whisper small (content encoder)             openai/whisper-small               Apache-2.0
+  BS-Roformer vocal separation, ep_317        by viperx, distributed with Ultimate Vocal
+                                              Remover and python-audio-separator.
+                                              THE AUTHOR HAS NOT PUBLISHED A LICENCE for
+                                              this checkpoint. It is only needed when
+                                              "keep_background" is on.
