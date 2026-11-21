@@ -42,7 +42,8 @@ def models_dir():
     return os.path.join(folder_paths.models_dir, MODELS_SUBDIR)
 
 
-def _run(audio, references, speakers, keep_background, mode, singing_pitch, steps, cfg, seed, wan2gp_ckpts_path):
+def _run(audio, references, speakers, keep_background, mode, singing_pitch, steps, cfg, seed, wan2gp_ckpts_path,
+         turns=None):
     """Shared execution path of both nodes. `references`: one sample path or None per speaker."""
     if audio is None or "waveform" not in audio:
         raise ValueError("Seed-VC Voice Swap: the 'audio' input is empty.")
@@ -78,7 +79,7 @@ def _run(audio, references, speakers, keep_background, mode, singing_pitch, step
             waveform, sample_rate, loaded, paths, speakers=speakers, mode=mode, steps=steps, cfg=cfg, seed=seed,
             keep_background=keep_background, pitch_mode=singing_pitch, device=device,
             fp16=device.type == "cuda", progress=progress,
-            check_interrupt=mm.throw_exception_if_processing_interrupted)
+            check_interrupt=mm.throw_exception_if_processing_interrupted, turns=turns)
     except (AudioError, ModelError) as exc:
         raise RuntimeError(f"Seed-VC Voice Swap: {exc}") from exc
     finally:
@@ -184,6 +185,13 @@ class SeedVCVoiceSwap2Speakers:
                          "voice 1, nobody is told apart), 2 when voice 2 is on. Set 2 with only voice 1 on to "
                          "convert the first speaker and leave the second one untouched."}),
             **_COMMON_INPUTS,
+        }, "optional": {
+            "turns": ("STRING", {"multiline": True, "default": "", "tooltip":
+                      "Optional: say who speaks when, one turn per line as 'start - stop = speaker', in seconds "
+                      "from the start of the clip. Example:\n0 - 3.5 = 1\n3.5 - 8 = 2\n8 - 12 = 1\n"
+                      "1 gets voice_1, 2 gets voice_2. When filled in, automatic speaker detection is off "
+                      "and 'who talks first' no longer matters. Times may be approximate: each change of "
+                      "speaker is moved to the nearest pause (up to 1 s away). Empty: automatic detection."}),
         }}
 
     RETURN_TYPES = ("AUDIO",)
@@ -191,7 +199,7 @@ class SeedVCVoiceSwap2Speakers:
     FUNCTION = "swap"
     CATEGORY = "audio/voice conversion"
     DESCRIPTION = ("Zero-shot voice conversion with Seed-VC for up to two speakers. Speakers are numbered by who "
-                   "talks first. Output has exactly the same length, sample rate and channel count as the input. "
+                   "talks first, or fill in 'turns' to say yourself who speaks when. Output has exactly the same length, sample rate and channel count as the input. "
                    "Use only with voices you have the rights to use.")
 
     @classmethod
@@ -207,13 +215,23 @@ class SeedVCVoiceSwap2Speakers:
                         if on and name != NO_SAMPLE)
 
     def swap(self, audio, enabled, voice_1_on, voice_1, voice_2_on, voice_2, speakers, keep_background, mode,
-             singing_pitch, steps, cfg, seed, wan2gp_ckpts_path=""):
+             singing_pitch, steps, cfg, seed, wan2gp_ckpts_path="", turns=""):
         if not enabled:
             return (audio,)
+        from .seedvc_swap.turns import TurnsError, parse_turns
+        try:
+            parsed_turns = parse_turns(turns)
+        except TurnsError as exc:
+            raise ValueError(f"Seed-VC Voice Swap: {exc}") from exc
         if not voice_1_on and not voice_2_on:
             raise ValueError("Seed-VC Voice Swap: both voice slots are off. Switch on 'voice_1_on' and/or "
                              "'voice_2_on', or switch 'enabled' off to pass the audio through.")
         count = (2 if voice_2_on else 1) if speakers == "auto" else int(speakers)
+        if parsed_turns:
+            if speakers == "1":
+                raise ValueError("Seed-VC Voice Swap: 'turns' is filled in but 'speakers' is 1. Set 'speakers' to "
+                                 "auto or 2, or empty 'turns'.")
+            count = 2  # the turns decide who speaks when; a slot that is off keeps the original voice
         if count == 1 and voice_2_on:
             raise ValueError("Seed-VC Voice Swap: 'speakers' is 1 but voice 2 is switched on. With one speaker "
                              "only voice 1 is used: switch voice 2 off, or set 'speakers' to auto or 2.")
@@ -222,7 +240,7 @@ class SeedVCVoiceSwap2Speakers:
         references = [_resolve_sample(voice_1, "voice_1") if voice_1_on else None,
                       _resolve_sample(voice_2, "voice_2") if voice_2_on else None][:count]
         return _run(audio, references, count, keep_background, mode, singing_pitch, steps, cfg, seed,
-                    wan2gp_ckpts_path)
+                    wan2gp_ckpts_path, turns=parsed_turns or None)
 
 
 NODE_CLASS_MAPPINGS = {"SeedVCVoiceSwap": SeedVCVoiceSwap, "SeedVCVoiceSwap2Speakers": SeedVCVoiceSwap2Speakers}

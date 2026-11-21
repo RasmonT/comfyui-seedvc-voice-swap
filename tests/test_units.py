@@ -380,6 +380,28 @@ def test_two_speakers_each_get_their_own_voice(monkeypatch):
     assert [e["voice"] for e in stats["items"][0]["speakers"]] == ["converted", "converted"]
 
 
+def test_turns_replace_the_automatic_detection(monkeypatch):
+    from seedvc_swap.turns import parse_turns
+    rate, length = 22050, 22050 * 4
+    _two_speaker_setup(monkeypatch, length, rate)
+
+    def _must_not_run(*args, **kwargs):
+        raise AssertionError("automatic detection ran although turns were given")
+
+    monkeypatch.setattr(dz, "diarize", _must_not_run)
+    audio = torch.ones(1, length) * 0.1
+    voice_a, voice_b = torch.full((22050,), 2.0), torch.full((22050,), 3.0)
+    lines = []
+    out, stats = pipeline.voice_swap_speakers(audio, rate, [(voice_a, rate), (voice_b, rate)], {}, speakers=2,
+                                              keep_background=False, device="cpu", fp16=False, log=lines.append,
+                                              turns=parse_turns("0 - 1 = 2\n1 - 4 = 1"))
+    assert out.shape == audio.shape
+    assert abs(float(out[0, length // 8]) - 0.3) < 1e-4, "0-1 s was given to speaker 2: voice 2"
+    assert abs(float(out[0, 3 * length // 4]) - 0.2) < 1e-4, "1-4 s was given to speaker 1: voice 1"
+    assert stats["items"][0]["diarization"]["source"] == "turns"
+    assert any("speaker turns given by hand" in line for line in lines)
+
+
 def test_speaker_without_a_slot_keeps_the_original_voice(monkeypatch):
     rate, length = 22050, 22050 * 4
     _two_speaker_setup(monkeypatch, length, rate)

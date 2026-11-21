@@ -59,9 +59,35 @@ Same inputs, with two voice slots and a speaker count instead of `voice_sample`:
 | `voice_1_on`, `voice_1` | on, `(none)` | Voice for **speaker 1 = whoever speaks first**. Off: speaker 1 keeps the original voice. |
 | `voice_2_on`, `voice_2` | off, `(none)` | Voice for **speaker 2 = the other speaker**. Off: speaker 2 keeps the original voice. |
 | `speakers` | `auto` | `auto`: 1 if only voice 1 is on (all speech gets voice 1, nobody is told apart), 2 if voice 2 is on. Set `2` with only voice 1 on to convert the first speaker and leave the second untouched. |
+| `turns` | empty | Optional. Say yourself who speaks when, one turn per line: `start - stop = speaker`. When filled in, automatic speaker detection is off. See [Saying who speaks when](#saying-who-speaks-when-turns). |
 
 The console prints what was found, for example
 `[SeedVC] speakers: #1 6.4 s -> converted, #2 5.9 s -> converted`.
+
+### Saying who speaks when (`turns`)
+
+Automatic detection numbers the speakers by who talks first, so the two voices change places from
+clip to clip and can be swapped by one misjudged opening line. If you know the dialogue, fill in
+`turns` instead and the node does what you say:
+
+```
+0 - 3.5 = 1
+3.5 - 8 = 2
+8 - 12.4 = 1
+```
+
+- One turn per line, `start - stop = speaker`, in seconds from the start of the clip (`0:08 - 0:12.4 = 1`
+  works too). `1` gets `voice_1`, `2` gets `voice_2`; a slot that is off keeps the original voice.
+- **The times may be approximate.** Every change of speaker is moved to the nearest pause in the speech,
+  up to 1 s away, because a generated clip rarely follows the prompt to the frame. If there is no pause
+  nearby, the cut is made exactly where you asked and the console says so.
+- Time before the first turn belongs to the first speaker listed, time after the last turn to the last one.
+- Lines starting with `#` are ignored. Leave `speakers` on `auto` or `2`.
+- The console prints the turns it read and where each change was placed, for example
+  `[SeedVC]   change to speaker 2 at 3.50 s (asked 2.70 s, in a pause)`.
+
+The limits listed below (short turns, similar voices, a second voice under 0.8 s) apply to automatic
+detection only. Two people talking at the same moment still cannot be separated.
 
 ### How speakers are told apart, and where it fails
 
@@ -212,6 +238,9 @@ Node na výmenu hlasu v zvuku cez Seed-VC, bez Wan2GP.
 - **Seed-VC Voice Swap (1 voice):** celá reč dostane jeden hlas.
 - **Seed-VC Voice Swap (2 speakers):** slot 1 je ten, kto prehovorí prvý, slot 2 druhý rečník.
   Rečník bez zapnutého slotu si nechá pôvodný hlas.
+- **Pole `turns`:** namiesto automatiky napíšete, kto kedy hovorí, každú repliku na riadok ako
+  `od - do = rečník` v sekundách (napr. `0 - 3.5 = 1`). 1 dostane `voice_1`, 2 dostane `voice_2`. Časy
+  stačia približné: zmena rečníka sa posunie do najbližšej pauzy (najviac o 1 s). Prázdne pole = automatika.
 - Výstup má presne rovnakú dĺžku, vzorkovaciu frekvenciu aj počet kanálov ako vstup.
 - `keep_background` oddelí hudbu a ruchy, prevedie len hlas a pozadie vráti späť.
 - Vzorky hlasov sa vyberajú zo súborov v `ComfyUI/input` (aj z podpriečinkov); ideálne 5 až 25 s čistej reči.
