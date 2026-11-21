@@ -9,6 +9,7 @@ import torch
 
 from . import diarize as dz
 from . import separator
+from . import turns as manual_turns
 from .audio_utils import AudioError, db, fit_length, load_audio_file, match_loudness, resample, to_mono
 from .converter import SeedVCEngine
 
@@ -71,7 +72,8 @@ def voice_swap(waveform, sample_rate, reference, reference_rate, model_paths, **
 
 def voice_swap_speakers(waveform, sample_rate, references, model_paths, *, speakers=1, mode="speech", steps=25,
                         cfg=0.5, seed=0, keep_background=True, device="cuda", fp16=True, pitch_mode="original",
-                        pitch_shift=0, progress=None, check_interrupt=None, log=print, return_stems=False):
+                        pitch_shift=0, progress=None, check_interrupt=None, log=print, return_stems=False,
+                        turns=None):
     """Replace the voice(s) in `waveform`.
 
     waveform: float tensor [B, C, T] or [C, T] with C = 1 or 2, any sample rate.
@@ -79,6 +81,8 @@ def voice_swap_speakers(waveform, sample_rate, references, model_paths, *, speak
         (mono float tensor, sample_rate) for the target voice, or None to keep that
         speaker's original voice.
     speakers: 1 = all speech belongs to speaker 1. 2 = find who speaks when (at most two speakers).
+    turns: optional [(start_s, stop_s, speaker index)] from `turns.parse_turns`. With speakers=2 it
+        replaces the automatic detection: the user says who speaks when.
     Returns (output, stats). output has exactly the input shape; stats holds timings, gains,
     what the speaker detection found and, with `return_stems`, the stems of the first item.
     """
@@ -145,7 +149,21 @@ def voice_swap_speakers(waveform, sample_rate, references, model_paths, *, speak
             mono = to_mono(voice)
 
             # who speaks when
-            if speakers == 2:
+            if speakers == 2 and turns:
+                start = time.perf_counter()
+                wave16 = resample(mono, sample_rate, dz.RATE).detach().float().cpu()
+                speech, _ = dz.speech_frames(wave16)
+                try:
+                    labels, turn_info = manual_turns.labels_from_turns(turns, speech)
+                except manual_turns.TurnsError as exc:
+                    raise AudioError(str(exc)) from exc
+                found = dz.Diarization(labels, 2, speech, turn_info)
+                masks = dz.speaker_masks(found, length, sample_rate)
+                timings["diarize_s"] += time.perf_counter() - start
+                item["speakers_found"] = 2
+                item["diarization"] = turn_info
+                log(manual_turns.describe(turn_info))
+            elif speakers == 2:
                 start = time.perf_counter()
                 found = dz.diarize(resample(mono, sample_rate, dz.RATE), engine.campplus, engine.device)
                 masks = dz.speaker_masks(found, length, sample_rate)
